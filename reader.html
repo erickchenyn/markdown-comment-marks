@@ -115,98 +115,104 @@
     cursor: pointer;
   }
 
-  #upload-area {
+  #control-bar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 0;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .ctl-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ctl-group + .ctl-group {
+    padding-left: 12px;
+    border-left: 1px solid var(--border);
+  }
+  .ctl-label {
+    font-size: 12px;
+    color: var(--blockquote-text);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+  .ctl-btn {
+    font-family: inherit;
+    font-size: 13px;
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--code-bg);
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color 0.15s;
+    white-space: nowrap;
+  }
+  .ctl-btn:hover {
+    border-color: var(--link);
+  }
+  .ctl-file-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ctl-file-name:empty { display: none; }
+  #control-bar select {
+    font-family: inherit;
+    font-size: 13px;
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--code-bg);
+    color: var(--text);
+  }
+
+  #drop-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(9, 105, 218, 0.06);
+    border: 3px dashed var(--link);
+    border-radius: 12px;
+    margin: 16px;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2em;
+    color: var(--link);
+    pointer-events: none;
+  }
+  #drop-overlay.visible {
+    display: flex;
+  }
+
+  #empty-state {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 200px;
-    border: 2px dashed var(--border);
-    border-radius: 12px;
-    cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
-  }
-  #upload-area:hover, #upload-area.dragover {
-    border-color: var(--link);
-    background: #f0f6ff;
-  }
-  #upload-area p {
+    min-height: 300px;
     color: var(--blockquote-text);
-    font-size: 1.1em;
-    margin: 0;
   }
-  #upload-area .hint {
-    font-size: 0.85em;
-    margin-top: 8px;
-  }
-  #upload-area.compact {
-    min-height: 0;
-    padding: 8px 16px;
-    flex-direction: row;
-    gap: 8px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-  }
-  #upload-area.compact p {
-    font-size: 14px;
-  }
-  #upload-area.compact .hint {
-    display: none;
-  }
-  #file-name {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text);
-    display: none;
-  }
+  #empty-state p { margin: 4px 0; }
+  #empty-state .primary { font-size: 1.1em; }
+  #empty-state .hint { font-size: 0.85em; }
+  #empty-state.hidden { display: none; }
 
   #content { display: none; }
-
-  #toolbar {
-    display: none;
-    position: sticky;
-    top: 0;
-    background: var(--bg);
-    padding: 12px 0;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 16px;
-    z-index: 10;
-  }
-  #toolbar select {
-    font-family: inherit;
-    font-size: 14px;
-    padding: 4px 8px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--code-bg);
-    color: var(--text);
-  }
-  #toolbar label {
-    font-size: 14px;
-    color: var(--blockquote-text);
-    margin-right: 8px;
-  }
-  #csv-upload {
-    margin-left: 16px;
-  }
-  #csv-btn {
-    font-family: inherit;
-    font-size: 14px;
-    padding: 4px 8px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--code-bg);
-    color: var(--text);
-    cursor: pointer;
-  }
-  #csv-btn:hover {
-    border-color: var(--link);
-  }
-  #csv-name {
-    font-size: 14px;
-    color: var(--blockquote-text);
-    margin-left: 6px;
-  }
 
   #main-layout {
     display: flex;
@@ -275,26 +281,35 @@
 </head>
 <body>
 
-<div id="upload-area">
-  <p id="upload-prompt">Drop a .md file here, or click to select</p>
-  <p class="hint">comment-start/end marks will be highlighted</p>
-  <p id="file-name"></p>
-  <input type="file" id="file-input" accept=".md,.markdown,.txt" hidden>
+<div id="control-bar">
+  <div class="ctl-group">
+    <span class="ctl-label">Markdown</span>
+    <button id="md-btn" class="ctl-btn" type="button">Open .md</button>
+    <span id="md-name" class="ctl-file-name"></span>
+    <input type="file" id="file-input" accept=".md,.markdown,.txt" hidden>
+  </div>
+  <div class="ctl-group">
+    <span class="ctl-label">Highlight</span>
+    <select id="mark-type">
+      <option value="start-end-mark">start-end-mark</option>
+      <option value="moxt-mark">moxt-mark</option>
+      <option value="markdown-link">markdown-link</option>
+      <option value="markdown-note">markdown-note</option>
+    </select>
+  </div>
+  <div class="ctl-group">
+    <span class="ctl-label">Comments</span>
+    <button id="csv-btn" class="ctl-btn" type="button">Open .csv</button>
+    <span id="csv-name" class="ctl-file-name"></span>
+    <input type="file" id="csv-input" accept=".csv" hidden>
+  </div>
 </div>
 
-<div id="toolbar">
-  <label for="mark-type">Comment mark type:</label>
-  <select id="mark-type">
-    <option value="start-end-mark">start-end-mark</option>
-    <option value="moxt-mark">moxt-mark</option>
-    <option value="markdown-link">markdown-link</option>
-    <option value="markdown-note">markdown-note</option>
-  </select>
-  <span id="csv-upload">
-    <button id="csv-btn" type="button">Load comments.csv</button>
-    <span id="csv-name"></span>
-    <input type="file" id="csv-input" accept=".csv" hidden>
-  </span>
+<div id="drop-overlay">Drop .md file to open</div>
+
+<div id="empty-state">
+  <p class="primary">Drop a .md file here, or click "Open .md" above</p>
+  <p class="hint">Comment marks will be highlighted</p>
 </div>
 
 <div id="main-layout">
@@ -309,14 +324,16 @@
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
-const uploadArea = document.getElementById('upload-area');
+const mdBtn = document.getElementById('md-btn');
+const mdName = document.getElementById('md-name');
 const fileInput = document.getElementById('file-input');
-const toolbar = document.getElementById('toolbar');
 const markType = document.getElementById('mark-type');
 const content = document.getElementById('content');
 const csvBtn = document.getElementById('csv-btn');
 const csvInput = document.getElementById('csv-input');
 const csvName = document.getElementById('csv-name');
+const dropOverlay = document.getElementById('drop-overlay');
+const emptyState = document.getElementById('empty-state');
 
 const sidebar = document.getElementById('sidebar');
 const sidebarList = document.getElementById('sidebar-list');
@@ -325,20 +342,26 @@ let rawText = '';
 let commentsMap = null;
 let csvRows = null;
 
-uploadArea.addEventListener('click', () => fileInput.click());
+mdBtn.addEventListener('click', () => fileInput.click());
 
-uploadArea.addEventListener('dragover', (e) => {
+let dragCounter = 0;
+document.addEventListener('dragenter', (e) => {
   e.preventDefault();
-  uploadArea.classList.add('dragover');
+  dragCounter++;
+  dropOverlay.classList.add('visible');
 });
-uploadArea.addEventListener('dragleave', () => {
-  uploadArea.classList.remove('dragover');
-});
-uploadArea.addEventListener('drop', (e) => {
+document.addEventListener('dragleave', (e) => {
   e.preventDefault();
-  uploadArea.classList.remove('dragover');
+  dragCounter--;
+  if (dragCounter <= 0) { dragCounter = 0; dropOverlay.classList.remove('visible'); }
+});
+document.addEventListener('dragover', (e) => e.preventDefault());
+document.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dragCounter = 0;
+  dropOverlay.classList.remove('visible');
   const file = e.dataTransfer.files[0];
-  if (file) readAndRender(file);
+  if (file && /\.(md|markdown|txt)$/i.test(file.name)) readAndRender(file);
 });
 
 fileInput.addEventListener('change', () => {
@@ -531,11 +554,8 @@ function readAndRender(file) {
     rawText = e.target.result;
     renderMarkdown(rawText);
     content.style.display = 'block';
-    toolbar.style.display = 'block';
-    uploadArea.classList.add('compact');
-    document.getElementById('upload-prompt').textContent = 'Change file';
-    document.getElementById('file-name').style.display = 'block';
-    document.getElementById('file-name').textContent = file.name;
+    emptyState.classList.add('hidden');
+    mdName.textContent = file.name;
     document.title = file.name.replace(/\.[^.]+$/, '');
   };
   reader.readAsText(file);
