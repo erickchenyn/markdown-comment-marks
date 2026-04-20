@@ -29,6 +29,10 @@
     margin: 0 auto;
     padding: 40px 32px;
   }
+  body.split-view {
+    max-width: none;
+    padding: 40px 32px;
+  }
 
   h1, h2, h3, h4 {
     margin-top: 24px;
@@ -108,6 +112,7 @@
     border-bottom: 2px solid var(--highlight-border);
     padding: 1px 2px;
     border-radius: 2px;
+    cursor: pointer;
   }
 
   #upload-area {
@@ -202,6 +207,70 @@
     color: var(--blockquote-text);
     margin-left: 6px;
   }
+
+  #main-layout {
+    display: flex;
+    gap: 32px;
+  }
+  #content-col {
+    flex: 1;
+    min-width: 0;
+  }
+  #sidebar {
+    display: none;
+    width: 360px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 60px;
+    align-self: flex-start;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--code-bg);
+    padding: 16px;
+  }
+  #sidebar h3 {
+    font-size: 14px;
+    margin: 0 0 12px;
+    padding: 0;
+    border: none;
+    color: var(--blockquote-text);
+  }
+  .csv-card {
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .csv-card:hover {
+    border-color: var(--link);
+  }
+  .csv-card.active {
+    background: var(--highlight-bg);
+    border-color: var(--highlight-border);
+  }
+  .csv-card-quoted {
+    color: var(--text);
+    margin-bottom: 4px;
+    word-break: break-word;
+  }
+  .csv-card-content {
+    color: var(--blockquote-text);
+    font-size: 12px;
+    word-break: break-word;
+  }
+  .csv-card-id {
+    color: var(--blockquote-text);
+    font-size: 11px;
+    font-family: "SFMono-Regular", Consolas, monospace;
+    opacity: 0.6;
+    margin-top: 4px;
+  }
 </style>
 </head>
 <body>
@@ -228,7 +297,15 @@
   </span>
 </div>
 
-<div id="content"></div>
+<div id="main-layout">
+  <div id="content-col">
+    <div id="content"></div>
+  </div>
+  <div id="sidebar">
+    <h3>Comments</h3>
+    <div id="sidebar-list"></div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
@@ -241,8 +318,12 @@ const csvBtn = document.getElementById('csv-btn');
 const csvInput = document.getElementById('csv-input');
 const csvName = document.getElementById('csv-name');
 
+const sidebar = document.getElementById('sidebar');
+const sidebarList = document.getElementById('sidebar-list');
+
 let rawText = '';
 let commentsMap = null;
+let csvRows = null;
 
 uploadArea.addEventListener('click', () => fileInput.click());
 
@@ -275,8 +356,11 @@ csvInput.addEventListener('change', () => {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (e) => {
-    commentsMap = parseCSV(e.target.result);
+    const result = parseCSV(e.target.result);
+    commentsMap = result.map;
+    csvRows = result.rows;
     csvName.textContent = file.name;
+    renderSidebar();
     if (rawText) renderMarkdown(rawText);
   };
   reader.readAsText(file);
@@ -333,12 +417,16 @@ function escapeRegex(s) {
 
 function parseCSV(csv) {
   const map = new Map();
+  const rows = [];
   const lines = csv.split('\n');
   for (let i = 1; i < lines.length; i++) {
     const row = parseCSVRow(lines[i]);
-    if (row && row[0]) map.set(row[0], row[1] || '');
+    if (row && row[0]) {
+      map.set(row[0], row[1] || '');
+      rows.push({ id: row[0], quoted: row[1] || '', content: row[2] || '' });
+    }
   }
-  return map;
+  return { map, rows };
 }
 
 function parseCSVRow(line) {
@@ -383,6 +471,62 @@ function renderMarkdown(raw) {
 
   marked.setOptions({ breaks: false, gfm: true });
   content.innerHTML = marked.parse(processed);
+
+  content.querySelectorAll('mark.comment-highlight').forEach(mark => {
+    mark.addEventListener('mouseenter', () => {
+      const id = mark.dataset.commentId;
+      const card = sidebarList.querySelector('.csv-card[data-comment-id="' + id + '"]');
+      if (card) {
+        card.classList.add('active');
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    });
+    mark.addEventListener('mouseleave', () => {
+      const id = mark.dataset.commentId;
+      const card = sidebarList.querySelector('.csv-card[data-comment-id="' + id + '"]');
+      if (card) card.classList.remove('active');
+    });
+  });
+}
+
+function renderSidebar() {
+  if (!csvRows) return;
+  sidebarList.innerHTML = '';
+  for (const row of csvRows) {
+    const card = document.createElement('div');
+    card.className = 'csv-card';
+    card.dataset.commentId = row.id;
+
+    const q = document.createElement('div');
+    q.className = 'csv-card-quoted';
+    q.textContent = row.quoted || '(empty)';
+    card.appendChild(q);
+
+    if (row.content) {
+      const c = document.createElement('div');
+      c.className = 'csv-card-content';
+      c.textContent = row.content;
+      card.appendChild(c);
+    }
+
+    const idEl = document.createElement('div');
+    idEl.className = 'csv-card-id';
+    idEl.textContent = row.id;
+    card.appendChild(idEl);
+
+    card.addEventListener('click', () => {
+      const mark = content.querySelector('mark[data-comment-id="' + row.id + '"]');
+      if (mark) {
+        mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        sidebarList.querySelectorAll('.csv-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+      }
+    });
+
+    sidebarList.appendChild(card);
+  }
+  sidebar.style.display = 'block';
+  document.body.classList.add('split-view');
 }
 
 function readAndRender(file) {
