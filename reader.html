@@ -134,6 +134,26 @@
     font-size: 0.85em;
     margin-top: 8px;
   }
+  #upload-area.compact {
+    min-height: 0;
+    padding: 8px 16px;
+    flex-direction: row;
+    gap: 8px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+  }
+  #upload-area.compact p {
+    font-size: 14px;
+  }
+  #upload-area.compact .hint {
+    display: none;
+  }
+  #file-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    display: none;
+  }
 
   #content { display: none; }
 
@@ -166,8 +186,9 @@
 <body>
 
 <div id="upload-area">
-  <p>Drop a .md file here, or click to select</p>
+  <p id="upload-prompt">Drop a .md file here, or click to select</p>
   <p class="hint">comment-start/end marks will be highlighted</p>
+  <p id="file-name"></p>
   <input type="file" id="file-input" accept=".md,.markdown,.txt" hidden>
 </div>
 
@@ -223,8 +244,14 @@ const highlighters = {
     /<comment-start\s+data-id="([^"]+)"\s*\/>([\s\S]*?)<comment-end\s+data-id="\1"\s*\/>/g,
     '<mark class="comment-highlight" data-comment-id="$1">$2</mark>'
   ),
-  'moxt-mark': (text) => text,
-  'markdown-link': (text) => text,
+  'moxt-mark': (text) => text.replace(
+    /<moxt-comment\s+data-id="([^"]+)">([\s\S]*?)<\/moxt-comment>/g,
+    '<mark class="comment-highlight" data-comment-id="$1">$2</mark>'
+  ),
+  'markdown-link': (text) => text.replace(
+    /\[([^\]]*)\]\(comment:([^)]+)\)/g,
+    '<mark class="comment-highlight" data-comment-id="$2">$1</mark>'
+  ),
   'markdown-note': (text) => text,
 };
 
@@ -244,7 +271,10 @@ function readAndRender(file) {
     renderMarkdown(rawText);
     content.style.display = 'block';
     toolbar.style.display = 'block';
-    uploadArea.style.display = 'none';
+    uploadArea.classList.add('compact');
+    document.getElementById('upload-prompt').textContent = 'Change file';
+    document.getElementById('file-name').style.display = 'block';
+    document.getElementById('file-name').textContent = file.name;
     document.title = file.name.replace(/\.[^.]+$/, '');
   };
   reader.readAsText(file);
