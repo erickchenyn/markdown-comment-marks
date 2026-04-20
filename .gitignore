@@ -1,0 +1,15 @@
+*
+
+!.gitignore
+
+!.claude/
+!.claude/**
+
+!reader.html
+
+!comments.csv
+
+!start-end-mark.md
+!moxt-mark.md
+!markdown-link.md
+!markdown-note.md
