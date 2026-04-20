@@ -473,18 +473,14 @@ function renderMarkdown(raw) {
   content.innerHTML = marked.parse(processed);
 
   content.querySelectorAll('mark.comment-highlight').forEach(mark => {
-    mark.addEventListener('mouseenter', () => {
+    mark.addEventListener('click', () => {
       const id = mark.dataset.commentId;
       const card = sidebarList.querySelector('.csv-card[data-comment-id="' + id + '"]');
       if (card) {
+        sidebarList.querySelectorAll('.csv-card').forEach(c => c.classList.remove('active'));
         card.classList.add('active');
         card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
-    });
-    mark.addEventListener('mouseleave', () => {
-      const id = mark.dataset.commentId;
-      const card = sidebarList.querySelector('.csv-card[data-comment-id="' + id + '"]');
-      if (card) card.classList.remove('active');
     });
   });
 }
