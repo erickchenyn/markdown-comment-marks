@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Markdown Comment Viewer</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --text: #24292f;
+    --code-bg: #f6f8fa;
+    --border: #d0d7de;
+    --link: #0969da;
+    --highlight-bg: #fff3bf;
+    --highlight-border: #e8d44d;
+    --blockquote-border: #d0d7de;
+    --blockquote-text: #57606a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--text);
+    background: var(--bg);
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 32px;
+  }
+
+  h1, h2, h3, h4 {
+    margin-top: 24px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+  h1 { font-size: 2em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+  h2 { font-size: 1.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 1.25em; }
+  h4 { font-size: 1em; }
+
+  p { margin-bottom: 16px; }
+
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  blockquote {
+    margin-bottom: 16px;
+    padding: 0 1em;
+    color: var(--blockquote-text);
+    border-left: 0.25em solid var(--blockquote-border);
+  }
+
+  ul, ol {
+    margin-bottom: 16px;
+    padding-left: 2em;
+  }
+  li + li { margin-top: 4px; }
+  li > p { margin-bottom: 8px; }
+
+  code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 85%;
+    background: var(--code-bg);
+    padding: 0.2em 0.4em;
+    border-radius: 6px;
+  }
+
+  pre {
+    margin-bottom: 16px;
+    padding: 16px;
+    overflow: auto;
+    font-size: 85%;
+    line-height: 1.45;
+    background: var(--code-bg);
+    border-radius: 6px;
+  }
+  pre code {
+    background: none;
+    padding: 0;
+    font-size: 100%;
+  }
+
+  table {
+    margin-bottom: 16px;
+    border-collapse: collapse;
+    width: 100%;
+  }
+  th, td {
+    padding: 6px 13px;
+    border: 1px solid var(--border);
+  }
+  th { font-weight: 600; }
+  tr:nth-child(2n) { background: var(--code-bg); }
+
+  hr {
+    margin: 24px 0;
+    border: none;
+    border-top: 1px solid var(--border);
+  }
+
+  strong { font-weight: 600; }
+
+  mark.comment-highlight {
+    background-color: var(--highlight-bg);
+    border-bottom: 2px solid var(--highlight-border);
+    padding: 1px 2px;
+    border-radius: 2px;
+  }
+
+  #upload-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  #upload-area:hover, #upload-area.dragover {
+    border-color: var(--link);
+    background: #f0f6ff;
+  }
+  #upload-area p {
+    color: var(--blockquote-text);
+    font-size: 1.1em;
+    margin: 0;
+  }
+  #upload-area .hint {
+    font-size: 0.85em;
+    margin-top: 8px;
+  }
+
+  #content { display: none; }
+
+  #toolbar {
+    display: none;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+    z-index: 10;
+  }
+  #toolbar select {
+    font-family: inherit;
+    font-size: 14px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--code-bg);
+    color: var(--text);
+  }
+  #toolbar label {
+    font-size: 14px;
+    color: var(--blockquote-text);
+    margin-right: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div id="upload-area">
+  <p>Drop a .md file here, or click to select</p>
+  <p class="hint">comment-start/end marks will be highlighted</p>
+  <input type="file" id="file-input" accept=".md,.markdown,.txt" hidden>
+</div>
+
+<div id="toolbar">
+  <label for="mark-type">Comment mark type:</label>
+  <select id="mark-type">
+    <option value="start-end-mark">start-end-mark</option>
+    <option value="moxt-mark">moxt-mark</option>
+    <option value="markdown-link">markdown-link</option>
+    <option value="markdown-note">markdown-note</option>
+  </select>
+</div>
+
+<div id="content"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+const uploadArea = document.getElementById('upload-area');
+const fileInput = document.getElementById('file-input');
+const toolbar = document.getElementById('toolbar');
+const markType = document.getElementById('mark-type');
+const content = document.getElementById('content');
+
+let rawText = '';
+
+uploadArea.addEventListener('click', () => fileInput.click());
+
+uploadArea.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  uploadArea.classList.add('dragover');
+});
+uploadArea.addEventListener('dragleave', () => {
+  uploadArea.classList.remove('dragover');
+});
+uploadArea.addEventListener('drop', (e) => {
+  e.preventDefault();
+  uploadArea.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) readAndRender(file);
+});
+
+fileInput.addEventListener('change', () => {
+  const file = fileInput.files[0];
+  if (file) readAndRender(file);
+});
+
+markType.addEventListener('change', () => {
+  if (rawText) renderMarkdown(rawText);
+});
+
+const highlighters = {
+  'start-end-mark': (text) => text.replace(
+    /<comment-start\s+data-id="([^"]+)"\s*\/>([\s\S]*?)<comment-end\s+data-id="\1"\s*\/>/g,
+    '<mark class="comment-highlight" data-comment-id="$1">$2</mark>'
+  ),
+  'moxt-mark': (text) => text,
+  'markdown-link': (text) => text,
+  'markdown-note': (text) => text,
+};
+
+function renderMarkdown(raw) {
+  const type = markType.value;
+  const process = highlighters[type] || ((t) => t);
+  const processed = process(raw);
+
+  marked.setOptions({ breaks: false, gfm: true });
+  content.innerHTML = marked.parse(processed);
+}
+
+function readAndRender(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    rawText = e.target.result;
+    renderMarkdown(rawText);
+    content.style.display = 'block';
+    toolbar.style.display = 'block';
+    uploadArea.style.display = 'none';
+    document.title = file.name.replace(/\.[^.]+$/, '');
+  };
+  reader.readAsText(file);
+}
+</script>
+</body>
+</html>
